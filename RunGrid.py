@@ -20,8 +20,8 @@ def compute_structure(
     rho_core *= 5514
     R *= 6.678e6
     M = (4/3) * np.pi * R**3 * rho_bulk
-    Mw = M * mf
-    Rc = (M * (1 - mf) * 3 / (4 * np.pi)) ** (1/3)
+    Mw = M * fwater
+    Rc = (M * (1 - fwater) * 3 / (4 * np.pi * rho_core)) ** (1/3)
     
     res = np.array(HydroSphere(Psurf, Teq, Mw, Rc, rho_core))
     
@@ -34,21 +34,23 @@ def compute_structure(
     
 # trappist-1 G params
 
-rhoc = 1.5 # core density in earth units
-mf = 0.1 # water / core
+rhoc = 1.0 # core density in earth units
 R = 1.129 # in earth units
 Ps = 0.1 # MPa 
+# temps b, c, d, e, f, g: 400, 341, 288, 251, 219, 198, 168 from Agol 2020
+T = 198
     
 def f(c):
-    i, D, T = c
-    print(i, D, T)
+    i, D, fw = c
+    #print(i, D, T)
     savefile = 'out{0}.dat'.format(i)
-    compute_structure(D, T, rhoc, mf, R, Ps, savefile=savefile)
+    compute_structure(D, T, rhoc, fw, R, Ps, savefile=savefile)
     
-D = np.linspace(0.5, 1.5, 5)
-T = np.linspace(150, 250, 5)
-D, T = np.meshgrid(D, T)
-coords = [(i, D, T) for i, (D, T) in enumerate(zip(D.flatten(), T.flatten()))]
+D = np.linspace(0.5, 1.0, 20)
+fw = np.linspace(0.001, 0.01, 20)
+D, fw = np.meshgrid(D, fw)
+coords = [(i, D, fw) for i, (D, fw) in enumerate(zip(D.flatten(), fw.flatten()))]
+np.savetxt('key.dat', coords)
 
 if __name__ == '__main__':
-    Pool(2).map(f, coords)
+    Pool(28).map(f, coords)

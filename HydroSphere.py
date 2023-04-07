@@ -68,7 +68,7 @@ def _compute_conductivity(P, T, rho, alpha, grav, z, phase):
             
     return Ra, Conductivity
 
-def HydroSphere(Ps, Ts, Mw, Rc, Rhoc, resolution=100, G_iter=1, M_thresh=0.01, compute_conductivity=False):
+def HydroSphere(Ps, Ts, Mw, Rc, Rhoc, resolution=100, G_iter=3, M_thresh=0.01, compute_conductivity=False):
         
     Mass_core = 4./3 * np.pi * Rc**3 * Rhoc
     g_s = 6.67430e-11 * Mass_core / Rc**2 # Gravity at the Hydrosphere Mantle Boundary
@@ -103,7 +103,15 @@ def HydroSphere(Ps, Ts, Mw, Rc, Rhoc, resolution=100, G_iter=1, M_thresh=0.01, c
             g = grav[::-1]
             PT[0] = (Ps, Ts)
             
-            phase_s = 7 if Ps > 2200 else sf.whichphase(PT)[0]
+            if Ps > 2200:
+                Tm = ((Ps * 1e-3 - 2.17) / 1.253 + 1)**(1/3) * 354.8
+                if Ts < Tm:
+                    phase_s = 7
+                else:
+                    phase_s = 0
+            else:
+                phase_s = sf.whichphase(PT)[0]
+                
             out = sf.seafreeze(PT,sf.phasenum2phase[phase_s]) 
 
             T[0] = Ts
@@ -114,12 +122,25 @@ def HydroSphere(Ps, Ts, Mw, Rc, Rhoc, resolution=100, G_iter=1, M_thresh=0.01, c
             dT_dz[0] = out.alpha * g[0] * Ts / out.Cp
             phase[0] = phase_s
             
+            ice_VII_flag = 0
             for i in range(1, z.size):  # Integration with depth
                 T[i] = T[i - 1] + dT_dz[i - 1] * dz[i - 1]
                 P[i] = P[i - 1] + rho[i - 1] * g[i - 1] * dz[i - 1] * 1e-6
                 PT[0] = (P[i], T[i])
+                                
+                if not ice_VII_flag:
+                    if P[i] > 2200:
+                        Tm = ((P[i] * 1e-3 - 2.17) / 1.253 + 1)**(1/3) * 354.8
+                        if T[i] < Tm:
+                            phase[i] = 7
+                            ice_VII_flag = 1
+                        else:
+                            phase[i] = 0
+                    else:
+                        phase[i] = sf.whichphase(PT)
+                else:
+                    phase[i] = 7
                 
-                phase[i] = 7 if P[i] > 2200 else sf.whichphase(PT)
                 out = sf.seafreeze(PT,sf.phasenum2phase[phase[i]])
 
                 rho[i] = out.rho
